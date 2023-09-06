@@ -54,6 +54,10 @@
             android:permission="ThermalService" />
 
         <service
+            android:name=".display.ColorService"
+            android:permission="ColorService" />
+
+        <service
             android:name=".display.DcDimmingTileService"
             android:exported="true"
             android:icon="@drawable/ic_dc_tile"
@@ -208,5 +212,4 @@
             </intent-filter>
         </service>
     </application>
-
 </manifest>
