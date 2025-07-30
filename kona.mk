@@ -286,7 +286,7 @@ PRODUCT_PACKAGES += \
     media_codecs_performance_c2.xml \
     video_system_specs.json
 
-$(call soong_config_set,stagefright,target_disable_thumbnail_block_model,true)
+$(call soong_config_set_bool,stagefright,target_disable_thumbnail_block_model,true)
 
 # NFC
 PRODUCT_PACKAGES += \
