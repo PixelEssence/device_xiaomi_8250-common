@@ -29,43 +29,28 @@
 #
 
 on early-init
-    write /proc/sys/kernel/sched_boost 1
     write /sys/class/drm/card0/card0-DSI-1/thermal_hbm_disabled 0
     chmod 0444 /sys/class/drm/card0/card0-DSI-1/thermal_hbm_disabled
 
-    # configure governor settings
-    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor performance
+    # Let PowerHAL/schedutil control CPU frequency from boot.
     write /sys/devices/system/cpu/cpu0/cpufreq/schedutil/up_rate_limit_us 500
     write /sys/devices/system/cpu/cpu0/cpufreq/schedutil/down_rate_limit_us 20000
 
-    # configure governor settings for big cluster
-    write /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor performance
+    # configure schedutil rate limits for big cluster
     write /sys/devices/system/cpu/cpu4/cpufreq/schedutil/up_rate_limit_us 500
     write /sys/devices/system/cpu/cpu4/cpufreq/schedutil/down_rate_limit_us 20000
 
-    # configure governor settings for big big CPU
-    write /sys/devices/system/cpu/cpu7/cpufreq/scaling_governor performance
+    # configure schedutil rate limits for prime CPU
     write /sys/devices/system/cpu/cpu7/cpufreq/schedutil/up_rate_limit_us 500
     write /sys/devices/system/cpu/cpu7/cpufreq/schedutil/down_rate_limit_us 20000
 
 on init
-    # Boot time cpuset and stune
+    # Boot-time cpusets; scheduling boosts are handled by PowerHAL.
     write /dev/cpuset/top-app/cpus 0-7
     write /dev/cpuset/foreground/cpus 0-7
     write /dev/cpuset/background/cpus 0-5
     write /dev/cpuset/system-background/cpus 0-5
     write /dev/cpuset/restricted/cpus 2-5
-    write /dev/stune/foreground/schedtune.prefer_idle 1
-    write /dev/stune/foreground/schedtune.prefer_high_cap 1
-    write /dev/stune/foreground/schedtune.boost 100
-    write /dev/stune/schedtune.prefer_idle 1
-    write /dev/stune/schedtune.prefer_high_cap 1
-    write /dev/stune/schedtune.boost 100
-    write /dev/stune/top-app/schedtune.prefer_idle 1
-    write /dev/stune/top-app/schedtune.prefer_high_cap 1
-    write /dev/stune/top-app/schedtune.boost 100
-    write /dev/stune/foreground/schedtune.sched_boost_no_override 1
-    write /dev/stune/top-app/schedtune.sched_boost_no_override 1
     write /dev/stune/schedtune.colocate 0
     write /dev/stune/background/schedtune.colocate 0
     write /dev/stune/system-background/schedtune.colocate 0
