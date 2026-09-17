@@ -5780,7 +5780,7 @@ case "$target" in
         # memlat specific settings are moved to seperate file under
         # device/target specific folder
 	setprop vendor.dcvs.prop 1
-    echo N > /sys/module/lpm_levels/parameters/sleep_disabled
+    echo 0 > /sys/module/lpm_levels/parameters/sleep_disabled
     configure_memory_parameters
     ;;
 esac
