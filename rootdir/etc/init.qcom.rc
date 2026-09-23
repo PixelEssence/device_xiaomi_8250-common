@@ -642,7 +642,6 @@ service vendor.LKCore-rel /vendor/bin/LKCore
 
 on charger
     start qcom-post-boot
-    setprop sys.usb.config adb
 
 on property:ro.vendor.radio.noril=*
     setprop ro.radio.noril ${ro.vendor.radio.noril}
