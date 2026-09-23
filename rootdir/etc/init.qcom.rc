@@ -642,8 +642,6 @@ service vendor.LKCore-rel /vendor/bin/LKCore
 
 on charger
     start qcom-post-boot
-    wait /dev/block/bootdevice/by-name/system
-    mount ext4 /dev/block/bootdevice/by-name/system / ro barrier=1
     setprop sys.usb.config adb
 
 on property:ro.vendor.radio.noril=*
