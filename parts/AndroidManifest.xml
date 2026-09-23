@@ -82,6 +82,11 @@
         </service>
 
         <activity
+            android:name=".thermal.ThermalInfoActivity"
+            android:exported="false"
+            android:label="@string/thermal_info_title" />
+
+        <activity
             android:name=".thermal.ThermalActivity"
             android:exported="false"
             android:label="@string/thermal_title">

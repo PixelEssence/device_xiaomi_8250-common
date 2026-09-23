@@ -18,6 +18,7 @@ android_app {
     static_libs: [
         "org.lineageos.settings.resources",
         "SettingsLib",
+        "SettingsLibSliderPreference",
         "//hardware/xiaomi:vendor.xiaomi.hardware.touchfeature-V1.0-java",
         "//hardware/xiaomi:vendor.xiaomi.hardware.displayfeature-V1.0-java",
     ],
