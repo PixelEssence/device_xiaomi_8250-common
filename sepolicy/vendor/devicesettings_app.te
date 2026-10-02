@@ -27,7 +27,3 @@ allow devicesettings_app {
 # Allow devicesettings_app to access the battery node used by charging control
 allow devicesettings_app vendor_sysfs_battery_supply:dir search;
 allow devicesettings_app vendor_sysfs_battery_supply:file rw_file_perms;
-
-# XiaomiParts selects the runtime mi_thermald map override.
-get_prop(devicesettings_app, vendor_thermal_profile_prop)
-set_prop(devicesettings_app, vendor_thermal_profile_prop)
