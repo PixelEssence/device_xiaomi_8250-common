@@ -49,6 +49,8 @@ blob_fixups: blob_fixups_user_type = {
         .add_needed('libcrypto_shim.so'),
     'vendor/etc/init/vendor.qti.media.c2@1.0-service.rc': blob_fixup()
         .regex_replace(r'writepid\s+/dev/cpuset/foreground/tasks', 'task_profiles ProcessCapacityHigh HighPerformance'),
+    'vendor/etc/configstore/vpp.configstore.xml': blob_fixup()
+        .regex_replace(r'(<capability key="enable" value=)"false"/>', r'\g<1>"true"/>'),
 }  # fmt: skip
 
 
