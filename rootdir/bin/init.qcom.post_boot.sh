@@ -908,7 +908,10 @@ function configure_memory_parameters() {
             let LimitSize=524288000
         fi
 
-        echo $LimitSize > /dev/memcg/camera/memory.soft_limit_in_bytes
+        # This limit is a cgroup v1 interface; newer releases use cgroup v2.
+        if [ -f /dev/memcg/camera/memory.soft_limit_in_bytes ]; then
+            echo $LimitSize > /dev/memcg/camera/memory.soft_limit_in_bytes
+        fi
     else
 
         # Read adj series and set adj threshold for PPR and ALMK.
@@ -1012,8 +1015,6 @@ function configure_memory_parameters() {
     if [ $MemTotal -le 8388608 ]; then
         echo 0 > /proc/sys/vm/watermark_boost_factor
     fi
-
-    configure_zram_parameters
 
     configure_read_ahead_kb_values
 
