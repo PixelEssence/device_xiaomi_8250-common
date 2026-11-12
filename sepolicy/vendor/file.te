@@ -30,3 +30,6 @@ type mdm_tombstone_data_file, data_file_type, file_type;
 
 # Awinic haptic resonance calibration, read by the vendor audio HAL.
 type vendor_sysfs_f0_value, fs_type, sysfs_type;
+
+# Alioth AW8697 custom waveform metadata.
+type vendor_sysfs_aw8697_custom_wave, fs_type, sysfs_type;
