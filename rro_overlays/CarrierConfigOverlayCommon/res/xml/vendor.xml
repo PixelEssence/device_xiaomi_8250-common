@@ -47,6 +47,20 @@
         <boolean name="carrier_b2c_enriched_calling_supported_bool" value="false" />
         <boolean name="carrier_call_progress_notification" value="true" />
 
+        <!-- Stock signal strength thresholds, four bars -->
+        <int-array name="5g_nr_ssrsrp_thresholds_int_array" num="4">
+            <item value="-140" />
+            <item value="-120" />
+            <item value="-115" />
+            <item value="-105" />
+        </int-array>
+        <int-array name="lte_rsrp_thresholds_int_array" num="4">
+            <item value="-140" />
+            <item value="-120" />
+            <item value="-115" />
+            <item value="-105" />
+        </int-array>
+
         <!-- Allow VoLTE and WFC by default -->
         <boolean name="carrier_volte_available_bool" value="true" />
         <boolean name="carrier_wfc_ims_available_bool" value="true" />
