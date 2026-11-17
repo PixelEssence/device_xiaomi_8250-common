@@ -86,7 +86,8 @@ public class CustomSeekBarPreference extends Preference implements SeekBar.OnSee
         } catch (Exception e) {
             Log.e(TAG, "Invalid interval value", e);
         }
-        mMinValue = attrs.getAttributeIntValue(SETTINGS_NS, "min", mMinValue);
+        mMinValue = attrs.getAttributeIntValue(SETTINGS_NS, "min",
+                attrs.getAttributeIntValue(ANDROIDNS, "min", mMinValue));
         mMaxValue = attrs.getAttributeIntValue(ANDROIDNS, "max", mMaxValue);
         if (mMaxValue < mMinValue)
             mMaxValue = mMinValue;

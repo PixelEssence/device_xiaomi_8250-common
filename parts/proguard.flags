@@ -22,6 +22,10 @@
   *;
 }
 
+-keep class org.lineageos.settings.chargecontrol.* {
+  *;
+}
+
 -keep class org.lineageos.settings.vpp.** {
   *;
 }
