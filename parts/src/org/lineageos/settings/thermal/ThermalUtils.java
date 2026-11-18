@@ -52,15 +52,25 @@ public final class ThermalUtils {
     private static final String THERMAL_SCONFIG =
             "/sys/class/thermal/thermal_message/sconfig";
     private static final String INDIA_MAP = "/vendor/etc/thermal-map-india.conf";
-    private static final String PROP_THERMAL_MAP = "persist.vendor.thermal.map";
+    private static final String PROP_THERMAL_MAP = "persist.sys.xiaomi.thermal.map";
     private static final String MAP_GLOBAL = "global";
     private static final String MAP_INDIA = "india";
 
     private final Context mContext;
     private final SharedPreferences mSharedPrefs;
     private final Display mDisplay;
+    // Touching these nodes is owned by Parts; rotation stays separate.
+    private static final int[] TOUCH_RESET_MODES = {
+            Constants.MODE_TOUCH_GAME_MODE,
+            Constants.MODE_TOUCH_ACTIVE_MODE,
+            Constants.MODE_TOUCH_UP_THRESHOLD,
+            Constants.MODE_TOUCH_TOLERANCE,
+            Constants.MODE_TOUCH_EDGE_FILTER
+    };
     private ITouchFeature mTouchFeature;
     private boolean mTouchModeChanged;
+    // A recreated service cannot assume the kernel is at its defaults.
+    private boolean mTouchNeedsReset = true;
 
     protected ThermalUtils(Context context) {
         mContext = context.getApplicationContext();
@@ -103,6 +113,17 @@ public final class ThermalUtils {
         return FileUtils.fileExists(INDIA_MAP);
     }
 
+    static int getCurrentSconfig() {
+        String value = FileUtils.readOneLine(THERMAL_SCONFIG);
+        if (value == null) return -1;
+        try {
+            int sconfig = Integer.parseInt(value.trim());
+            return sconfig >= 0 ? sconfig : -1;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
     static int getSelectedRegion() {
         String map = SystemProperties.get(PROP_THERMAL_MAP, "");
         if (MAP_INDIA.equals(map) && isIndiaMapAvailable()) {
@@ -112,6 +133,9 @@ public final class ThermalUtils {
     }
 
     protected boolean setSelectedRegion(int region) {
+        if (region != ThermalProfiles.REGION_GLOBAL && region != ThermalProfiles.REGION_INDIA) {
+            return false;
+        }
         if (region == ThermalProfiles.REGION_INDIA && !isIndiaMapAvailable()) {
             return false;
         }
@@ -235,30 +259,33 @@ public final class ThermalUtils {
         return profile == null ? getBaseSconfig() : profile.sconfig;
     }
 
-    private void writeThermalState(int state) {
-        if (!FileUtils.writeLine(THERMAL_SCONFIG, Integer.toString(state))) {
+    private boolean writeThermalState(int state) {
+        boolean applied = FileUtils.writeLine(THERMAL_SCONFIG, Integer.toString(state));
+        if (!applied) {
             Log.w(TAG, "Cannot write thermal state " + state);
         }
+        return applied;
     }
 
-    protected void setDefaultThermalProfile() {
-        writeThermalState(getBaseSconfig());
+    protected boolean setDefaultThermalProfile() {
+        return writeThermalState(getBaseSconfig());
     }
 
-    protected void setThermalProfile(String packageName) {
-        writeThermalState(sconfigForState(getStateForPackage(packageName)));
-        updateTouchModes(packageName);
+    protected boolean setThermalProfile(String packageName) {
+        boolean thermalApplied =
+                writeThermalState(sconfigForState(getStateForPackage(packageName)));
+        boolean touchApplied = updateTouchModes(packageName);
+        return thermalApplied && touchApplied;
     }
 
-    private void updateTouchModes(String packageName) {
+    private boolean updateTouchModes(String packageName) {
+        if (!resetTouchModes()) return false;
+
         String values = mSharedPrefs.getString(packageName, null);
-        resetTouchModes();
-        if (values == null || values.isEmpty()) return;
-        if (mTouchFeature == null) mTouchFeature = getTouchFeature();
-        if (mTouchFeature == null) return;
+        if (values == null || values.isEmpty()) return true;
 
         String[] value = values.split(",", -1);
-        if (value.length != 4) return;
+        if (value.length != 4) return true;
         final int gameMode;
         final int touchResponse;
         final int touchSensitivity;
@@ -269,53 +296,72 @@ public final class ThermalUtils {
             touchSensitivity = Integer.parseInt(value[Constants.TOUCH_SENSITIVITY]);
             touchResistant = Integer.parseInt(value[Constants.TOUCH_RESISTANT]);
         } catch (NumberFormatException e) {
-            return;
+            return true;
         }
+
+        if (mTouchFeature == null) mTouchFeature = getTouchFeature();
+        if (mTouchFeature == null) return false;
 
         int touchActiveMode =
                 (touchResponse != 0 && touchSensitivity != 0 && touchResistant != 0) ? 1 : 0;
         try {
-            mTouchFeature.setTouchMode(Constants.MODE_TOUCH_TOLERANCE, touchSensitivity);
-            mTouchFeature.setTouchMode(Constants.MODE_TOUCH_UP_THRESHOLD, touchResponse);
-            mTouchFeature.setTouchMode(Constants.MODE_TOUCH_EDGE_FILTER, touchResistant);
-            mTouchFeature.setTouchMode(Constants.MODE_TOUCH_GAME_MODE, gameMode);
-            mTouchFeature.setTouchMode(Constants.MODE_TOUCH_ACTIVE_MODE, touchActiveMode);
+            boolean applied =
+                    mTouchFeature.setTouchMode(
+                            Constants.MODE_TOUCH_TOLERANCE, touchSensitivity) == 0
+                    && mTouchFeature.setTouchMode(
+                            Constants.MODE_TOUCH_UP_THRESHOLD, touchResponse) == 0
+                    && mTouchFeature.setTouchMode(
+                            Constants.MODE_TOUCH_EDGE_FILTER, touchResistant) == 0
+                    && mTouchFeature.setTouchMode(
+                            Constants.MODE_TOUCH_GAME_MODE, gameMode) == 0
+                    && mTouchFeature.setTouchMode(
+                            Constants.MODE_TOUCH_ACTIVE_MODE, touchActiveMode) == 0;
+            if (!applied) {
+                mTouchNeedsReset = true;
+                resetBestEffort();
+                return false;
+            }
             mTouchModeChanged = true;
-            updateTouchRotation();
+            return updateTouchRotation();
         } catch (RemoteException e) {
             Log.w(TAG, "Cannot apply touch profile", e);
-            resetTouchModesBestEffort();
+            mTouchNeedsReset = true;
+            resetBestEffort();
             mTouchFeature = null;
+            return false;
+        }
+    }
+
+    private boolean resetBestEffort() {
+        if (mTouchFeature == null) mTouchFeature = getTouchFeature();
+        // Nothing of ours can be owned without the touch HAL.
+        if (mTouchFeature == null) return true;
+        boolean applied = true;
+        for (int mode : TOUCH_RESET_MODES) {
+            try {
+                if (mTouchFeature.resetTouchMode(mode) != 0) applied = false;
+            } catch (RemoteException e) {
+                Log.d(TAG, "Cannot reset touch mode " + mode, e);
+                applied = false;
+                mTouchFeature = null;
+            }
+        }
+        return applied;
+    }
+
+    protected boolean resetTouchModes() {
+        if (!mTouchModeChanged && !mTouchNeedsReset) return true;
+        boolean applied = resetBestEffort();
+        if (applied) {
             mTouchModeChanged = false;
+            mTouchNeedsReset = false;
         }
+        return applied;
     }
 
-    private void resetTouchModeBestEffort(int mode) {
-        if (mTouchFeature == null) return;
-        try {
-            mTouchFeature.resetTouchMode(mode);
-        } catch (RemoteException e) {
-            Log.d(TAG, "Cannot reset touch mode " + mode, e);
-        }
-    }
-
-    private void resetTouchModesBestEffort() {
-        resetTouchModeBestEffort(Constants.MODE_TOUCH_GAME_MODE);
-        resetTouchModeBestEffort(Constants.MODE_TOUCH_ACTIVE_MODE);
-        resetTouchModeBestEffort(Constants.MODE_TOUCH_UP_THRESHOLD);
-        resetTouchModeBestEffort(Constants.MODE_TOUCH_TOLERANCE);
-        resetTouchModeBestEffort(Constants.MODE_TOUCH_EDGE_FILTER);
-        resetTouchModeBestEffort(Constants.MODE_TOUCH_ROTATION);
-    }
-
-    protected void resetTouchModes() {
-        if (!mTouchModeChanged) return;
-        resetTouchModesBestEffort();
-        mTouchModeChanged = false;
-    }
-
-    protected void updateTouchRotation() {
-        if (!mTouchModeChanged || mDisplay == null || mTouchFeature == null) return;
+    protected boolean updateTouchRotation() {
+        if (!mTouchModeChanged || mDisplay == null) return true;
+        if (mTouchFeature == null) return false;
         final int touchRotation;
         switch (mDisplay.getRotation()) {
             case Surface.ROTATION_90: touchRotation = 1; break;
@@ -325,11 +371,15 @@ public final class ThermalUtils {
             default: touchRotation = 0; break;
         }
         try {
-            mTouchFeature.setTouchMode(Constants.MODE_TOUCH_ROTATION, touchRotation);
+            boolean applied =
+                    mTouchFeature.setTouchMode(Constants.MODE_TOUCH_ROTATION, touchRotation) == 0;
+            if (!applied) mTouchNeedsReset = true;
+            return applied;
         } catch (RemoteException e) {
             Log.w(TAG, "Cannot update touch rotation", e);
+            mTouchNeedsReset = true;
             mTouchFeature = null;
-            mTouchModeChanged = false;
+            return false;
         }
     }
 }

@@ -31,6 +31,23 @@ public class ThermalInfoFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         int region = ThermalUtils.getSelectedRegion();
         mProfiles = ThermalProfiles.getProfiles(region);
+
+        TextView currentValue = view.findViewById(R.id.thermal_current_profile_value);
+        TextView currentNote = view.findViewById(R.id.thermal_current_profile_note);
+        int currentSconfig = ThermalUtils.getCurrentSconfig();
+        ThermalProfiles.Profile currentProfile = currentSconfig >= 0
+                ? ThermalProfiles.findBySconfig(region, currentSconfig) : null;
+        if (currentProfile != null) {
+            currentValue.setText(getString(R.string.thermal_current_profile_value,
+                    getString(currentProfile.titleRes), currentProfile.sconfig));
+        } else if (currentSconfig >= 0) {
+            currentValue.setText(
+                    getString(R.string.thermal_current_profile_unknown, currentSconfig));
+        } else {
+            currentValue.setText(R.string.thermal_current_profile_unavailable);
+        }
+        currentNote.setText(R.string.thermal_current_profile_note);
+
         String regionName = getString(region == ThermalProfiles.REGION_INDIA
                 ? R.string.thermal_region_india : R.string.thermal_region_global);
         TextView headerTitle = view.findViewById(R.id.thermal_info_header_title);

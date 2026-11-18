@@ -30,10 +30,12 @@ public class ThermalService extends Service {
     private boolean mReceiverRegistered;
     private boolean mTaskListenerRegistered;
     private String mCurrentApp = "";
+    private int mRetryCount;
     private ThermalUtils mThermalUtils;
     private IActivityTaskManager mActivityTaskManager;
 
     private final Runnable mRefreshForeground = () -> refreshForegroundApp(false);
+    private final Runnable mRetryForeground = () -> refreshForegroundApp(true);
 
     private final BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
         @Override
@@ -42,8 +44,7 @@ public class ThermalService extends Service {
             if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
                 mScreenOn = false;
                 mCurrentApp = "";
-                mThermalUtils.resetTouchModes();
-                mThermalUtils.setDefaultThermalProfile();
+                recordApply(restoreDefault());
             } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
                 mScreenOn = true;
                 refreshForegroundApp(true);
@@ -87,6 +88,7 @@ public class ThermalService extends Service {
     public void onDestroy() {
         mDestroyed = true;
         mHandler.removeCallbacks(mRefreshForeground);
+        mHandler.removeCallbacks(mRetryForeground);
 
         if (mReceiverRegistered) {
             try {
@@ -106,8 +108,7 @@ public class ThermalService extends Service {
             mTaskListenerRegistered = false;
         }
 
-        mThermalUtils.resetTouchModes();
-        mThermalUtils.setDefaultThermalProfile();
+        restoreDefault();
         super.onDestroy();
     }
 
@@ -119,15 +120,30 @@ public class ThermalService extends Service {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (!mDestroyed) mThermalUtils.updateTouchRotation();
+        if (!mDestroyed && !mThermalUtils.updateTouchRotation()) recordApply(false);
+    }
+
+    private boolean restoreDefault() {
+        boolean touchApplied = mThermalUtils.resetTouchModes();
+        boolean thermalApplied = mThermalUtils.setDefaultThermalProfile();
+        return touchApplied && thermalApplied;
+    }
+
+    private void recordApply(boolean applied) {
+        mHandler.removeCallbacks(mRetryForeground);
+        if (applied) {
+            mRetryCount = 0;
+        } else if (!mDestroyed && mRetryCount < 3) {
+            mRetryCount++;
+            mHandler.postDelayed(mRetryForeground, 1000);
+        }
     }
 
     private void refreshForegroundApp(boolean force) {
         if (mDestroyed) return;
         if (!mScreenOn) {
             mCurrentApp = "";
-            mThermalUtils.resetTouchModes();
-            mThermalUtils.setDefaultThermalProfile();
+            recordApply(restoreDefault());
             return;
         }
 
@@ -141,23 +157,26 @@ public class ThermalService extends Service {
             } catch (RemoteException | RuntimeException e) {
                 Log.w(TAG, "Cannot query foreground app", e);
                 mCurrentApp = "";
-                mThermalUtils.resetTouchModes();
-                mThermalUtils.setDefaultThermalProfile();
+                restoreDefault();
+                recordApply(false);
                 return;
             }
         }
 
         if (!force && foregroundApp.equals(mCurrentApp)) return;
-        mCurrentApp = foregroundApp;
-        if (mCurrentApp.isEmpty()) {
-            mThermalUtils.resetTouchModes();
-            mThermalUtils.setDefaultThermalProfile();
-        } else {
-            mThermalUtils.setThermalProfile(mCurrentApp);
-        }
+        boolean applied = foregroundApp.isEmpty()
+                ? restoreDefault()
+                : mThermalUtils.setThermalProfile(foregroundApp);
+        mCurrentApp = applied ? foregroundApp : "";
+        recordApply(applied);
     }
 
     private final TaskStackListener mTaskListener = new TaskStackListener() {
+        @Override
+        public void onTaskFocusChanged(int taskId, boolean focused) {
+            if (focused) onTaskStackChanged();
+        }
+
         @Override
         public void onTaskStackChanged() {
             if (mDestroyed) return;

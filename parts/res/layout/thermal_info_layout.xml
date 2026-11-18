@@ -17,6 +17,40 @@
         android:padding="16dp">
 
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/thermal_current_profile_title"
+            android:textAppearance="@style/TextAppearance.SettingsLib.TitleMedium"
+            android:textColor="@color/settingslib_materialColorOnSurface" />
+
+        <TextView
+            android:id="@+id/thermal_current_profile_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.SettingsLib.BodyMedium"
+            android:textColor="@color/settingslib_materialColorOnSurface" />
+
+        <TextView
+            android:id="@+id/thermal_current_profile_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.SettingsLib.BodySmall"
+            android:textColor="@color/settingslib_materialColorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/parts_list_item_background"
+        android:elevation="2dp"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
             android:id="@+id/thermal_info_header_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
