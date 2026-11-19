@@ -186,14 +186,21 @@ public final class HbmUtils {
     }
 
     private static int readInt(Context context, String key, int defValue) {
-        String value = getPreferences(context).getString(key, null);
-        if (value == null) {
-            return defValue;
-        }
+        final SharedPreferences prefs = getPreferences(context);
         try {
-            return Integer.parseInt(value.trim());
-        } catch (NumberFormatException e) {
-            return defValue;
+            // SliderPreference (auto HBM threshold) stores an int, while the
+            // older CustomSeekBarPreference controls stored a string.
+            return prefs.getInt(key, defValue);
+        } catch (ClassCastException e) {
+            final String value = prefs.getString(key, null);
+            if (value == null) {
+                return defValue;
+            }
+            try {
+                return Integer.parseInt(value.trim());
+            } catch (NumberFormatException numberFormatException) {
+                return defValue;
+            }
         }
     }
 

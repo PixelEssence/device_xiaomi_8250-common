@@ -24,7 +24,9 @@
     <string name="auto_hbm_title">Automatic HBM</string>
     <string name="auto_hbm_summary">Enable peak luminance based on sunlight</string>
     <string name="auto_hbm_threshold_title">Lux threshold</string>
-    <string name="auto_hbm_threshold_summary">Auto-HBM turns on above this ambient light level</string>
+    <string name="auto_hbm_threshold_summary">Current value: %d lux</string>
+    <string name="auto_hbm_threshold_reset_title">Reset to default</string>
+    <string name="auto_hbm_threshold_reset_summary">Restore default threshold (7000 lux)</string>
     <string name="hbm_disable_time_title">Disable delay</string>
     <string name="hbm_disable_time_summary">Keep HBM on for this many seconds after light drops</string>
     <string name="hbm_mode_warning">Long time usage of High brightness mode may damage your display</string>

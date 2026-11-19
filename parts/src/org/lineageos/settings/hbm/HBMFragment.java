@@ -23,25 +23,28 @@ import android.content.Context;
 import android.os.Bundle;
 
 import androidx.preference.Preference;
-import androidx.preference.PreferenceFragment;
 import androidx.preference.TwoStatePreference;
+
+import com.android.settingslib.widget.SettingsBasePreferenceFragment;
 
 import org.lineageos.settings.R;
 
-public class HBMFragment extends PreferenceFragment
+public class HBMFragment extends SettingsBasePreferenceFragment
         implements Preference.OnPreferenceChangeListener {
 
     public static final String KEY_HBM_SWITCH = HbmUtils.KEY_HBM;
     public static final String KEY_AUTO_HBM_SWITCH = HbmUtils.KEY_AUTO_HBM;
     public static final String KEY_AUTO_HBM_THRESHOLD = HbmUtils.KEY_AUTO_HBM_THRESHOLD;
+    public static final String KEY_AUTO_HBM_THRESHOLD_RESET = "auto_hbm_threshold_reset";
     public static final String KEY_HBM_DISABLE_TIME = HbmUtils.KEY_HBM_DISABLE_TIME;
 
     private TwoStatePreference mHBMModeSwitch;
     private TwoStatePreference mAutoHBMSwitch;
+    private AutoHBMThresholdPreference mThresholdPref;
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-        addPreferencesFromResource(R.xml.hbm_settings);
+        setPreferencesFromResource(R.xml.hbm_settings, rootKey);
 
         final Context context = getContext();
         if (context == null) {
@@ -58,6 +61,18 @@ public class HBMFragment extends PreferenceFragment
         if (mAutoHBMSwitch != null) {
             mAutoHBMSwitch.setChecked(HbmUtils.isAutoEnabled(context));
             mAutoHBMSwitch.setOnPreferenceChangeListener(this);
+        }
+
+        mThresholdPref = findPreference(KEY_AUTO_HBM_THRESHOLD);
+
+        final Preference resetPref = findPreference(KEY_AUTO_HBM_THRESHOLD_RESET);
+        if (resetPref != null) {
+            resetPref.setOnPreferenceClickListener(preference -> {
+                if (mThresholdPref != null) {
+                    mThresholdPref.resetToDefault();
+                }
+                return true;
+            });
         }
     }
 
