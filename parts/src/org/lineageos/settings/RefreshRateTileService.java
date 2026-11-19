@@ -1,168 +1,204 @@
 /*
  * Copyright (C) 2021 crDroid Android Project
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package org.lineageos.settings;
 
-import android.content.Context;
+import android.database.ContentObserver;
+import android.hardware.display.DisplayManager;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
+import android.util.Log;
 import android.view.Display;
+import android.widget.Toast;
+
+import org.lineageos.settings.refreshrate.RefreshUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 public class RefreshRateTileService extends TileService {
-    private static final String KEY_MIN_REFRESH_RATE = "min_refresh_rate";
-    private static final String KEY_PREFERRED_REFRESH_RATE = "preferred_refresh_rate";
-    private static final String KEY_PEAK_REFRESH_RATE = "peak_refresh_rate";
+    private static final String TAG = "RefreshRateTile";
 
-    private Context context;
-    private Tile tile;
+    private final List<Float> mRates = new ArrayList<>();
+    private boolean mListening;
 
-    private final List<Float> availableRates = new ArrayList<>();
-    private int activeRateMin;
-    private int activeRateMax;
+    private final ContentObserver mObserver =
+            new ContentObserver(new Handler(Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    if (mListening) updateTile();
+                }
+            };
 
     @Override
     public void onCreate() {
         super.onCreate();
-        context = getApplicationContext();
+        loadRates();
+    }
 
-        Display display = context.getDisplay();
-        if (display == null) {
-            return;
-        }
+    private void loadRates() {
+        DisplayManager displayManager = getSystemService(DisplayManager.class);
+        Display display = displayManager == null
+                ? null : displayManager.getDisplay(Display.DEFAULT_DISPLAY);
+        if (display == null) return;
 
-        Display.Mode currentMode = display.getMode();
-        Display.Mode[] modes = display.getSupportedModes();
-
-        for (Display.Mode m : modes) {
-            if (m.getPhysicalWidth() == currentMode.getPhysicalWidth()
-                    && m.getPhysicalHeight() == currentMode.getPhysicalHeight()) {
-                float rate = Float.valueOf(
-                        String.format(Locale.US, "%.02f", m.getRefreshRate()));
-                if (!availableRates.contains(rate)) {
-                    availableRates.add(rate);
+        Display.Mode current = display.getMode();
+        List<Float> rates = new ArrayList<>();
+        for (Display.Mode mode : display.getSupportedModes()) {
+            if (mode.getPhysicalWidth() == current.getPhysicalWidth()
+                    && mode.getPhysicalHeight() == current.getPhysicalHeight()) {
+                float rate = Float.parseFloat(
+                        String.format(Locale.US, "%.02f", mode.getRefreshRate()));
+                if (!rates.contains(rate)) {
+                    rates.add(rate);
                 }
             }
         }
+        Collections.sort(rates);
 
-        syncFromSettings();
+        mRates.clear();
+        mRates.addAll(rates);
     }
 
-    private int getSettingOf(String key) {
-        if (availableRates.isEmpty()) {
-            return 0;
-        }
+    private int nearest(float value) {
+        if (mRates.isEmpty()) return -1;
+        if (Float.isInfinite(value)) return mRates.size() - 1;
 
-        float rate = Settings.System.getFloat(
-                context.getContentResolver(), key, 60);
-
-        int index = availableRates.indexOf(
-                Float.valueOf(String.format(Locale.US, "%.02f", rate)));
-
-        // Fallback if setting does not match any supported rate
-        return index >= 0 ? index : 0;
-    }
-
-    private void syncFromSettings() {
-        if (availableRates.isEmpty()) {
-            activeRateMin = 0;
-            activeRateMax = 0;
-            return;
-        }
-
-        activeRateMin = getSettingOf(KEY_MIN_REFRESH_RATE);
-        activeRateMax = getSettingOf(KEY_PEAK_REFRESH_RATE);
-
-        // Clamp for extra safety
-        activeRateMin = Math.max(0,
-                Math.min(activeRateMin, availableRates.size() - 1));
-        activeRateMax = Math.max(0,
-                Math.min(activeRateMax, availableRates.size() - 1));
-    }
-
-    private void cycleRefreshRate() {
-        if (availableRates.isEmpty()) {
-            return;
-        }
-
-        activeRateMin = (activeRateMin + 1) % availableRates.size();
-        float rate = availableRates.get(activeRateMin);
-
-        Settings.System.putFloat(context.getContentResolver(),
-                KEY_MIN_REFRESH_RATE, rate);
-        Settings.System.putFloat(context.getContentResolver(),
-                KEY_PREFERRED_REFRESH_RATE, rate);
-        Settings.System.putFloat(context.getContentResolver(),
-                KEY_PEAK_REFRESH_RATE, rate);
-    }
-
-    private String getFormatRate(float rate) {
-        return String.format(Locale.US, "%.02f Hz", rate)
-                .replaceAll("[\\.,]00", "");
-    }
-
-    private void updateTileView() {
-        if (tile == null || availableRates.isEmpty()) {
-            return;
-        }
-
-        if (activeRateMin < 0 || activeRateMin >= availableRates.size() ||
-            activeRateMax < 0 || activeRateMax >= availableRates.size()) {
-            syncFromSettings();
-            if (activeRateMin < 0 || activeRateMin >= availableRates.size() ||
-                activeRateMax < 0 || activeRateMax >= availableRates.size()) {
-                return;
+        int best = 0;
+        float bestDelta = Math.abs(mRates.get(0) - value);
+        for (int i = 1; i < mRates.size(); i++) {
+            float delta = Math.abs(mRates.get(i) - value);
+            if (delta < bestDelta) {
+                bestDelta = delta;
+                best = i;
             }
         }
+        return best;
+    }
 
-        float min = availableRates.get(activeRateMin);
-        float max = availableRates.get(activeRateMax);
+    private float readSetting(String key, float fallback) {
+        return Settings.System.getFloat(getContentResolver(), key, fallback);
+    }
 
-        String displayText = String.format(
-                Locale.US,
-                min == max ? "%s" : "%s - %s",
-                getFormatRate(min),
-                getFormatRate(max)
-        );
+    private boolean writeRate(float rate) {
+        float oldMin = readSetting(Settings.System.MIN_REFRESH_RATE, rate);
+        float oldPeak = readSetting(Settings.System.PEAK_REFRESH_RATE, rate);
 
-        tile.setContentDescription(displayText);
-        tile.setSubtitle(displayText);
-        tile.setState(min == max
-                ? Tile.STATE_ACTIVE
-                : Tile.STATE_INACTIVE);
+        if (!Settings.System.putFloat(getContentResolver(),
+                Settings.System.MIN_REFRESH_RATE, rate)) {
+            return false;
+        }
+        if (!Settings.System.putFloat(getContentResolver(),
+                Settings.System.PEAK_REFRESH_RATE, rate)) {
+            Settings.System.putFloat(getContentResolver(),
+                    Settings.System.MIN_REFRESH_RATE, oldMin);
+            Settings.System.putFloat(getContentResolver(),
+                    Settings.System.PEAK_REFRESH_RATE, oldPeak);
+            return false;
+        }
+        return true;
+    }
+
+    private String formatRate(float rate) {
+        return String.format(Locale.US, "%.02f Hz", rate).replaceAll("[.,]00", "");
+    }
+
+    private void updateTile() {
+        Tile tile = getQsTile();
+        if (tile == null) return;
+
+        if (mRates.isEmpty()) {
+            tile.setState(Tile.STATE_UNAVAILABLE);
+            tile.updateTile();
+            return;
+        }
+
+        float min = mRates.get(nearest(readSetting(
+                Settings.System.MIN_REFRESH_RATE, mRates.get(0))));
+        float max = mRates.get(nearest(readSetting(
+                Settings.System.PEAK_REFRESH_RATE, mRates.get(mRates.size() - 1))));
+        String label = min == max
+                ? formatRate(min)
+                : formatRate(min) + " - " + formatRate(max);
+
+        tile.setContentDescription(label);
+        tile.setSubtitle(label);
+        tile.setState(min == max ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
         tile.updateTile();
     }
 
     @Override
     public void onStartListening() {
         super.onStartListening();
-        tile = getQsTile();
-        syncFromSettings();
-        updateTileView();
+
+        if (!mListening) {
+            mListening = true;
+            try {
+                getContentResolver().registerContentObserver(
+                        Settings.System.getUriFor(Settings.System.MIN_REFRESH_RATE),
+                        false, mObserver);
+                getContentResolver().registerContentObserver(
+                        Settings.System.getUriFor(Settings.System.PEAK_REFRESH_RATE),
+                        false, mObserver);
+            } catch (RuntimeException e) {
+                stopObserving();
+                Log.w(TAG, "Cannot observe refresh rate settings", e);
+            }
+        }
+
+        if (mRates.isEmpty()) loadRates();
+        updateTile();
+    }
+
+    private void stopObserving() {
+        if (!mListening) return;
+        mListening = false;
+        try {
+            getContentResolver().unregisterContentObserver(mObserver);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Cannot stop observing refresh rate settings", e);
+        }
+    }
+
+    @Override
+    public void onStopListening() {
+        stopObserving();
+        super.onStopListening();
+    }
+
+    @Override
+    public void onDestroy() {
+        stopObserving();
+        super.onDestroy();
     }
 
     @Override
     public void onClick() {
         super.onClick();
-        cycleRefreshRate();
-        syncFromSettings();
-        updateTileView();
+
+        if (mRates.isEmpty()) {
+            updateTile();
+            return;
+        }
+
+        int current = nearest(readSetting(
+                Settings.System.MIN_REFRESH_RATE, mRates.get(0)));
+        float next = mRates.get((current + 1) % mRates.size());
+
+        if (writeRate(next)) {
+            // Keep the per-app baseline in sync when a rule is currently active.
+            RefreshUtils.updateUserBaseline(this, next, next);
+        } else {
+            Toast.makeText(this, R.string.parts_apply_failed, Toast.LENGTH_SHORT).show();
+        }
+        updateTile();
     }
 }
