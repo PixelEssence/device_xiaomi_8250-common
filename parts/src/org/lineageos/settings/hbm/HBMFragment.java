@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2016 The OmniROM Project
 * Copyright (C) 2018-2021 crDroid Android Project
-* Copyright (C) 2019-2022 Evolution X Project
+* Copyright (C) 2019-2026 The LineageOS Project
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -20,60 +20,65 @@
 package org.lineageos.settings.hbm;
 
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.res.Resources;
 import android.os.Bundle;
-import android.util.Log;
+
 import androidx.preference.Preference;
-import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragment;
-import androidx.preference.PreferenceManager;
 import androidx.preference.TwoStatePreference;
 
-import org.lineageos.settings.utils.FileUtils;
 import org.lineageos.settings.R;
 
 public class HBMFragment extends PreferenceFragment
         implements Preference.OnPreferenceChangeListener {
-    private static final String TAG = HBMFragment.class.getSimpleName();
 
-    public static final String KEY_HBM_SWITCH = "hbm";
-    public static final String KEY_AUTO_HBM_SWITCH = "auto_hbm";
-    public static final String KEY_AUTO_HBM_THRESHOLD = "auto_hbm_threshold";
-    public static final String KEY_HBM_DISABLE_TIME = "hbm_disable_time";
+    public static final String KEY_HBM_SWITCH = HbmUtils.KEY_HBM;
+    public static final String KEY_AUTO_HBM_SWITCH = HbmUtils.KEY_AUTO_HBM;
+    public static final String KEY_AUTO_HBM_THRESHOLD = HbmUtils.KEY_AUTO_HBM_THRESHOLD;
+    public static final String KEY_HBM_DISABLE_TIME = HbmUtils.KEY_HBM_DISABLE_TIME;
 
-    private static TwoStatePreference mHBMModeSwitch;
-    private static TwoStatePreference mAutoHBMSwitch;
+    private TwoStatePreference mHBMModeSwitch;
+    private TwoStatePreference mAutoHBMSwitch;
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this.getContext());
         addPreferencesFromResource(R.xml.hbm_settings);
 
-        // HBM
-        mHBMModeSwitch = (TwoStatePreference) findPreference(KEY_HBM_SWITCH);
-	mHBMModeSwitch.setOnPreferenceChangeListener(new HBMModeSwitch(getContext()));
+        final Context context = getContext();
+        if (context == null) {
+            return;
+        }
 
-        // AutoHBM
-        mAutoHBMSwitch = (TwoStatePreference) findPreference(KEY_AUTO_HBM_SWITCH);
-        mAutoHBMSwitch.setOnPreferenceChangeListener(this);
-        mAutoHBMSwitch.setChecked(PreferenceManager.getDefaultSharedPreferences(getContext()).getBoolean(HBMFragment.KEY_AUTO_HBM_SWITCH, false));
+        mHBMModeSwitch = findPreference(KEY_HBM_SWITCH);
+        if (mHBMModeSwitch != null) {
+            mHBMModeSwitch.setChecked(HbmUtils.isEnabled());
+            mHBMModeSwitch.setOnPreferenceChangeListener(new HBMModeSwitch(context));
+        }
+
+        mAutoHBMSwitch = findPreference(KEY_AUTO_HBM_SWITCH);
+        if (mAutoHBMSwitch != null) {
+            mAutoHBMSwitch.setChecked(HbmUtils.isAutoEnabled(context));
+            mAutoHBMSwitch.setOnPreferenceChangeListener(this);
+        }
     }
 
     public static boolean isAUTOHBMEnabled(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(HBMFragment.KEY_AUTO_HBM_SWITCH, false);
+        return HbmUtils.isAutoEnabled(context);
     }
 
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
         if (preference == mAutoHBMSwitch) {
-            Boolean enabled = (Boolean) newValue;
-            SharedPreferences.Editor prefChange = PreferenceManager.getDefaultSharedPreferences(getContext()).edit();
-            prefChange.putBoolean(KEY_AUTO_HBM_SWITCH, enabled).commit();
-            FileUtils.enableService(getContext());
+            if (!(newValue instanceof Boolean)) {
+                return false;
+            }
+            final Context context = getContext();
+            if (context == null) {
+                return false;
+            }
+            HbmUtils.setAutoEnabled(context, (Boolean) newValue);
+            HbmUtils.syncAutoService(context);
             return true;
-           }
+        }
 
         return false;
     }

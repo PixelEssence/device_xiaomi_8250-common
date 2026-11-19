@@ -18,15 +18,10 @@
 package org.lineageos.settings;
 
 import android.content.BroadcastReceiver;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.hardware.display.DisplayManager;
-import android.os.IBinder;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.os.SystemProperties;
+import android.hardware.display.DisplayManager;
 import android.util.Log;
 import android.view.Display;
 import android.view.Display.HdrCapabilities;
@@ -35,6 +30,7 @@ import androidx.preference.PreferenceManager;
 import org.lineageos.settings.thermal.ThermalUtils;
 import org.lineageos.settings.display.ColorService;
 import org.lineageos.settings.chargecontrol.ChargeControlUtils;
+import org.lineageos.settings.hbm.HbmUtils;
 import org.lineageos.settings.refreshrate.RefreshUtils;
 import org.lineageos.settings.touchsampling.TouchSamplingUtils;
 import org.lineageos.settings.utils.FileUtils;
@@ -56,7 +52,7 @@ public class BootCompletedReceiver extends BroadcastReceiver {
         VppUtils.startService(context);
         RefreshUtils.startService(context);
         TouchSamplingUtils.restoreSamplingValue(context);
-        FileUtils.enableService(context);
+        HbmUtils.syncAutoService(context);
         ChargeControlUtils.startService(context);
         overrideHdrTypes(context);
 
@@ -67,8 +63,10 @@ public class BootCompletedReceiver extends BroadcastReceiver {
     private static void overrideHdrTypes(Context context) {
         // Override HDR types to enable Dolby Vision
         final DisplayManager dm = context.getSystemService(DisplayManager.class);
-        dm.overrideHdrTypes(Display.DEFAULT_DISPLAY, new int[]{
-                HdrCapabilities.HDR_TYPE_DOLBY_VISION, HdrCapabilities.HDR_TYPE_HDR10,
-                HdrCapabilities.HDR_TYPE_HLG, HdrCapabilities.HDR_TYPE_HDR10_PLUS});
+        if (dm != null) {
+            dm.overrideHdrTypes(Display.DEFAULT_DISPLAY, new int[]{
+                    HdrCapabilities.HDR_TYPE_DOLBY_VISION, HdrCapabilities.HDR_TYPE_HDR10,
+                    HdrCapabilities.HDR_TYPE_HLG, HdrCapabilities.HDR_TYPE_HDR10_PLUS});
+        }
     }
 }

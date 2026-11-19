@@ -32,8 +32,7 @@ public class AutoHBMTimePreference extends CustomSeekBarPreference {
         mMaxValue = mMaxVal;
         mDefaultValueExists = true;
         mDefaultValue = mDefVal;
-        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getContext());
-        mValue = Integer.parseInt(sharedPrefs.getString(HBMFragment.KEY_HBM_DISABLE_TIME, "1"));
+        mValue = HbmUtils.getDisableDelay(getContext());
 
         setPersistent(false);
     }
@@ -41,6 +40,6 @@ public class AutoHBMTimePreference extends CustomSeekBarPreference {
     @Override
     protected void changeValue(int newValue) {
         SharedPreferences.Editor prefChange = PreferenceManager.getDefaultSharedPreferences(getContext()).edit();
-        prefChange.putString(HBMFragment.KEY_HBM_DISABLE_TIME, String.valueOf(newValue)).commit();
+        prefChange.putString(HBMFragment.KEY_HBM_DISABLE_TIME, String.valueOf(newValue)).apply();
     }
 }

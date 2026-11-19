@@ -24,6 +24,10 @@ import android.util.Log;
 
 import org.lineageos.settings.chargecontrol.ChargeControlActivity;
 import org.lineageos.settings.chargecontrol.ChargeControlTileService;
+import org.lineageos.settings.display.DcDimmingSettingsActivity;
+import org.lineageos.settings.display.DcDimmingTileService;
+import org.lineageos.settings.hbm.HBMActivity;
+import org.lineageos.settings.hbm.HBMModeTileService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +39,9 @@ public final class TileHandlerActivity extends Activity {
 
     static {
         TILE_ACTIVITY_MAP.put(ChargeControlTileService.class.getName(), ChargeControlActivity.class);
+        TILE_ACTIVITY_MAP.put(HBMModeTileService.class.getName(), HBMActivity.class);
+        TILE_ACTIVITY_MAP.put(DcDimmingTileService.class.getName(),
+                DcDimmingSettingsActivity.class);
     }
 
     @Override
