@@ -16,12 +16,14 @@
 
 package org.lineageos.settings.chargecontrol;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.Toast;
 
 import androidx.preference.Preference;
+import androidx.preference.SwitchPreferenceCompat;
 
 import com.android.settingslib.widget.MainSwitchPreference;
 import com.android.settingslib.widget.SettingsBasePreferenceFragment;
@@ -34,6 +36,7 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
 
     private MainSwitchPreference mChargeControlSwitch;
     private SliderPreference mStopChargingPreference;
+    private SwitchPreferenceCompat mBypassChargingPreference;
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -41,8 +44,10 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
 
         mChargeControlSwitch = findPreference(ChargeControlConstants.KEY_CHARGE_CONTROL);
         mStopChargingPreference = findPreference(ChargeControlConstants.KEY_STOP_CHARGING);
+        mBypassChargingPreference = findPreference(ChargeControlConstants.KEY_BYPASS_CHARGING);
 
-        if (mChargeControlSwitch == null || mStopChargingPreference == null) {
+        if (mChargeControlSwitch == null || mStopChargingPreference == null
+                || mBypassChargingPreference == null) {
             return;
         }
 
@@ -52,9 +57,12 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
 
         if (ChargeControlUtils.isSupported()) {
             mStopChargingPreference.setOnPreferenceChangeListener(this);
+            mBypassChargingPreference.setOnPreferenceChangeListener(this);
         } else {
             mStopChargingPreference.setSummary(R.string.kernel_node_access_error);
             mStopChargingPreference.setEnabled(false);
+            mBypassChargingPreference.setSummary(R.string.charge_bypass_unavailable);
+            mBypassChargingPreference.setEnabled(false);
         }
 
         updateUi();
@@ -68,7 +76,8 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
     }
 
     private void updateUi() {
-        if (mChargeControlSwitch == null || mStopChargingPreference == null) {
+        if (mChargeControlSwitch == null || mStopChargingPreference == null
+                || mBypassChargingPreference == null) {
             return;
         }
 
@@ -82,6 +91,9 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
         boolean supported = ChargeControlUtils.isSupported();
         mChargeControlSwitch.setEnabled(supported);
         mStopChargingPreference.setVisible(enabled);
+        mBypassChargingPreference.setVisible(enabled);
+        mBypassChargingPreference.setChecked(
+                enabled && ChargeControlUtils.isBypassEnabled(requireContext()));
         if (supported) {
             mStopChargingPreference.setValue(ChargeControlUtils.getStopLevel(requireContext()));
         }
@@ -89,16 +101,22 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
 
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        if (mStopChargingPreference == null) {
+        if (mStopChargingPreference == null || mBypassChargingPreference == null) {
             return;
         }
 
         ChargeControlUtils.setEnabled(requireContext(), isChecked);
         mStopChargingPreference.setVisible(isChecked);
+        mBypassChargingPreference.setVisible(isChecked);
+        mBypassChargingPreference.setChecked(false);
     }
 
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
+        if (preference == mBypassChargingPreference) {
+            return onBypassChargingChange(newValue);
+        }
+
         if (preference != mStopChargingPreference || !(newValue instanceof Integer)) {
             return false;
         }
@@ -116,5 +134,40 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
         // battery broadcast.
         ChargeControlUtils.applyCurrentBatteryState(requireContext());
         return true;
+    }
+
+    private boolean onBypassChargingChange(Object newValue) {
+        if (mBypassChargingPreference == null || !(newValue instanceof Boolean)) {
+            return false;
+        }
+
+        if (!(Boolean) newValue) {
+            ChargeControlUtils.setBypassEnabled(requireContext(), false);
+            return true;
+        }
+
+        ChargeControlUtils.SafetyCheckResult safetyCheck =
+                ChargeControlUtils.checkBypassSafety(requireContext());
+        if (!safetyCheck.isSafe()) {
+            Toast.makeText(requireContext(), safetyCheck.getReason(), Toast.LENGTH_LONG).show();
+            return false;
+        }
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.charge_bypass_title)
+                .setMessage(R.string.charge_bypass_warning)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    if (!ChargeControlUtils.setBypassEnabled(requireContext(), true)) {
+                        Toast.makeText(requireContext(), R.string.charge_bypass_write_failed,
+                                Toast.LENGTH_LONG).show();
+                    }
+                    mBypassChargingPreference.setChecked(
+                            ChargeControlUtils.isBypassEnabled(requireContext()));
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+
+        // The switch is only updated once the warning is accepted.
+        return false;
     }
 }

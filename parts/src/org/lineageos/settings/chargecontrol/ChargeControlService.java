@@ -70,7 +70,9 @@ public class ChargeControlService extends Service {
         public void onReceive(Context context, Intent intent) {
             ChargeControlUtils.applyBatteryState(context,
                     intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1),
-                    intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1));
+                    intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1),
+                    intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0,
+                    intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0));
         }
     }
 }

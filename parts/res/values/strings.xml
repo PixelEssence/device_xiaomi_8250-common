@@ -99,6 +99,21 @@
     <string name="charge_control_tile_disabled">Disabled</string>
     <string name="charge_control_tile_subtitle">Stop at %1$d%%</string>
     <string name="charge_control_tile_paused">Paused at %1$d%%</string>
+    <string name="charge_control_tile_bypass">Bypassing battery</string>
+
+    <!-- Bypass charging strings -->
+    <string name="charge_bypass_title">Bypass charging</string>
+    <string name="charge_bypass_summary">Stop charging now and run directly from the charger</string>
+    <string name="charge_bypass_warning">Bypass charging stops the battery from charging while the charger stays connected. It can increase heat. Continue?</string>
+    <string name="charge_bypass_unavailable">Bypass charging is not supported</string>
+    <string name="charge_bypass_requires_charge_control">Enable charging control first</string>
+    <string name="charge_bypass_no_charger">Connect the charger first</string>
+    <string name="charge_bypass_temp_too_high">Battery temperature is too high (%1$d°C)</string>
+    <string name="charge_bypass_level_too_low">Battery level is too low (%1$d%%)</string>
+    <string name="charge_bypass_write_failed">Could not change bypass charging</string>
+    <string name="charge_bypass_tile_label">Bypass charging</string>
+    <string name="charge_bypass_tile_active">Bypassing battery</string>
+    <string name="charge_bypass_tile_inactive">Tap to bypass the battery</string>
 
     <!-- Thermal profile UI (from john) -->
     <string name="parts_apply_failed">Could not apply this setting. Please try again.</string>

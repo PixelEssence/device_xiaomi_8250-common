@@ -55,11 +55,15 @@ public class ChargeControlTileService extends TileService {
         if (ChargeControlUtils.isEnabled(this)) {
             final int stopLevel = ChargeControlUtils.getStopLevel(this);
             tile.setState(Tile.STATE_ACTIVE);
-            tile.setSubtitle(getString(
-                    ChargeControlUtils.isSuspended()
-                            ? R.string.charge_control_tile_paused
-                            : R.string.charge_control_tile_subtitle,
-                    stopLevel));
+            if (ChargeControlUtils.isBypassEnabled(this)) {
+                tile.setSubtitle(getString(R.string.charge_control_tile_bypass));
+            } else {
+                tile.setSubtitle(getString(
+                        ChargeControlUtils.isSuspended()
+                                ? R.string.charge_control_tile_paused
+                                : R.string.charge_control_tile_subtitle,
+                        stopLevel));
+            }
         } else {
             tile.setState(Tile.STATE_INACTIVE);
             tile.setSubtitle(getString(R.string.charge_control_tile_disabled));

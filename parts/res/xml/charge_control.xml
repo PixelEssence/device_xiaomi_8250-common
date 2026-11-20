@@ -21,6 +21,13 @@
         app:showSeekBarValue="true"
         app:updatesContinuously="false" />
 
+    <SwitchPreferenceCompat
+        android:key="bypass_charging"
+        android:title="@string/charge_bypass_title"
+        android:summary="@string/charge_bypass_summary"
+        android:icon="@drawable/charger_24px"
+        android:defaultValue="false" />
+
     <com.android.settingslib.widget.FooterPreference
         android:key="charge_control_footer"
         android:title="@string/charge_control_footer_summary"
