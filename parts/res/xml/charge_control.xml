@@ -2,21 +2,24 @@
 
 <PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:settings="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <com.android.settingslib.widget.MainSwitchPreference
         android:key="charge_control"
         android:title="@string/charge_control_main_switch_title"
         android:defaultValue="false" />
 
-    <org.lineageos.settings.hbm.CustomSeekBarPreference
+    <com.android.settingslib.widget.SliderPreference
         android:key="stop_charging"
         android:title="@string/stop_charging_title"
         android:summary="@string/stop_charging_summary"
+        android:icon="@drawable/ic_charge_control"
+        android:defaultValue="100"
         android:max="100"
-        android:min="20"
-        settings:units="%"
-        android:defaultValue="100" />
+        app:min="20"
+        app:seekBarIncrement="1"
+        app:showSeekBarValue="true"
+        app:updatesContinuously="false" />
 
     <com.android.settingslib.widget.FooterPreference
         android:key="charge_control_footer"
