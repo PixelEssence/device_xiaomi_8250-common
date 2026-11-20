@@ -71,6 +71,7 @@ public final class ChargeControlUtils {
 
         if (isSupported() && !isEnabled(context)) {
             // Make sure a suspend left over from a previous boot is released.
+            setBypassPreference(context, false);
             writeNode(false);
         }
     }
@@ -214,7 +215,14 @@ public final class ChargeControlUtils {
 
         SharedPreferences prefs = getPreferences(context);
         if (!prefs.getBoolean(ChargeControlConstants.KEY_CHARGE_CONTROL, false)) {
-            // Disabled: leave the node alone.
+            // Disabled: never leave charging suspended, and drop a stale bypass
+            // flag so it cannot come back when charging control is re-enabled.
+            if (prefs.getBoolean(ChargeControlConstants.KEY_BYPASS_CHARGING, false)) {
+                setBypassPreference(context, false);
+            }
+            if (isSuspended()) {
+                writeNode(false);
+            }
             return true;
         }
 
