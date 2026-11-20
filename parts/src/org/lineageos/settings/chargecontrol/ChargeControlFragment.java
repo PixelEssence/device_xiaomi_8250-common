@@ -107,6 +107,8 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
 
         ChargeControlUtils.setStopLevel(requireContext(), value);
         mStopChargingPreference.setValue(value);
+        // Keep the QS tile subtitle in sync while it is listening.
+        ChargeControlUtils.updateTile(requireContext());
         Toast.makeText(requireContext(), getString(R.string.stop_charging_set_to, value),
                 Toast.LENGTH_SHORT).show();
 

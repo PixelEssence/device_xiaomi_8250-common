@@ -23,8 +23,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.BatteryManager;
 import android.os.IBinder;
+import android.util.Log;
 
 public class ChargeControlService extends Service {
+
+    private static final String TAG = "ChargeControlService";
 
     private BatteryReceiver mBatteryReceiver;
 
@@ -34,7 +37,13 @@ public class ChargeControlService extends Service {
         mBatteryReceiver = new BatteryReceiver();
         // The registered receiver also gets the sticky battery broadcast, so the
         // current state is applied as soon as the service starts.
-        registerReceiver(mBatteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        try {
+            registerReceiver(mBatteryReceiver,
+                    new IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                    Context.RECEIVER_NOT_EXPORTED);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Cannot register battery receiver", e);
+        }
     }
 
     @Override
