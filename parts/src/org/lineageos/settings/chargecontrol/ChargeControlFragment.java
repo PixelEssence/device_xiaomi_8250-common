@@ -25,15 +25,15 @@ import androidx.preference.Preference;
 
 import com.android.settingslib.widget.MainSwitchPreference;
 import com.android.settingslib.widget.SettingsBasePreferenceFragment;
+import com.android.settingslib.widget.SliderPreference;
 
 import org.lineageos.settings.R;
-import org.lineageos.settings.hbm.CustomSeekBarPreference;
 
 public class ChargeControlFragment extends SettingsBasePreferenceFragment
         implements OnCheckedChangeListener, Preference.OnPreferenceChangeListener {
 
     private MainSwitchPreference mChargeControlSwitch;
-    private CustomSeekBarPreference mStopChargingPreference;
+    private SliderPreference mStopChargingPreference;
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -45,6 +45,10 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
         if (mChargeControlSwitch == null || mStopChargingPreference == null) {
             return;
         }
+
+        mStopChargingPreference.setSliderIncrement(1);
+        mStopChargingPreference.setShowSliderValue(true);
+        mStopChargingPreference.setLabelFormater(value -> (int) value + "%");
 
         if (ChargeControlUtils.isSupported()) {
             mStopChargingPreference.setOnPreferenceChangeListener(this);
@@ -95,12 +99,11 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
 
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
-        if (preference != mStopChargingPreference) {
+        if (preference != mStopChargingPreference || !(newValue instanceof Integer)) {
             return false;
         }
 
-        int value = ChargeControlUtils.clampStopLevel(
-                Integer.parseInt(String.valueOf(newValue)));
+        int value = ChargeControlUtils.clampStopLevel((Integer) newValue);
 
         ChargeControlUtils.setStopLevel(requireContext(), value);
         mStopChargingPreference.setValue(value);

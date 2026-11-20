@@ -30,6 +30,6 @@ public final class ChargeControlConstants {
 
     public static final int DEFAULT_STOP_CHARGING = 100;
 
-    // Keep in sync with android:min in res/xml/charge_control.xml
+    // Keep in sync with app:min in res/xml/charge_control.xml
     public static final int MIN_STOP_CHARGING = 20;
 }

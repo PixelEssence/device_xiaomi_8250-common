@@ -261,6 +261,7 @@
         <activity
             android:name=".chargecontrol.ChargeControlActivity"
             android:label="@string/charge_control_title"
+            android:icon="@drawable/ic_charge_control"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.android.settings.action.IA_SETTINGS" />
@@ -280,7 +281,7 @@
         <service
             android:name=".chargecontrol.ChargeControlTileService"
             android:label="@string/charge_control_tile_label"
-            android:icon="@drawable/ic_battery_charging_60"
+            android:icon="@drawable/ic_charge_control"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
             <intent-filter>

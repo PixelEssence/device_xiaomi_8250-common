@@ -19,10 +19,18 @@ package org.lineageos.settings.chargecontrol;
 import android.os.Bundle;
 
 import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity;
+import com.android.settingslib.widget.ExpressiveDesignEnabledProvider;
 
-public class ChargeControlActivity extends CollapsingToolbarBaseActivity {
+public class ChargeControlActivity extends CollapsingToolbarBaseActivity
+        implements ExpressiveDesignEnabledProvider {
 
     private static final String TAG = "ChargeControl";
+
+    @Override
+    public boolean isExpressiveDesignEnabled() {
+        // Opt this page into the SettingsLib Material 3 expressive layout.
+        return true;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
