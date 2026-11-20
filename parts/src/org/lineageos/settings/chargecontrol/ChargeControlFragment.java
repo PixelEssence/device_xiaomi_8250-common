@@ -91,24 +91,40 @@ public class ChargeControlFragment extends SettingsBasePreferenceFragment
         boolean supported = ChargeControlUtils.isSupported();
         mChargeControlSwitch.setEnabled(supported);
         mStopChargingPreference.setVisible(enabled);
-        mBypassChargingPreference.setVisible(enabled);
-        mBypassChargingPreference.setChecked(
-                enabled && ChargeControlUtils.isBypassEnabled(requireContext()));
+        updateBypassUi(enabled, supported);
         if (supported) {
             mStopChargingPreference.setValue(ChargeControlUtils.getStopLevel(requireContext()));
         }
     }
 
+    private void updateBypassUi(boolean enabled, boolean supported) {
+        if (mBypassChargingPreference == null) {
+            return;
+        }
+
+        mBypassChargingPreference.setChecked(
+                enabled && ChargeControlUtils.isBypassEnabled(requireContext()));
+        if (supported) {
+            // Bypass is part of charging control: without the main switch it is
+            // disabled as well.
+            mBypassChargingPreference.setEnabled(enabled);
+            mBypassChargingPreference.setSummary(enabled
+                    ? R.string.charge_bypass_summary
+                    : R.string.charge_bypass_requires_charge_control);
+        } else {
+            mBypassChargingPreference.setEnabled(false);
+        }
+    }
+
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        if (mStopChargingPreference == null || mBypassChargingPreference == null) {
+        if (mStopChargingPreference == null) {
             return;
         }
 
         ChargeControlUtils.setEnabled(requireContext(), isChecked);
         mStopChargingPreference.setVisible(isChecked);
-        mBypassChargingPreference.setVisible(isChecked);
-        mBypassChargingPreference.setChecked(false);
+        updateBypassUi(isChecked, ChargeControlUtils.isSupported());
     }
 
     @Override
