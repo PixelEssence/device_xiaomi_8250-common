@@ -98,6 +98,7 @@
     <string name="charge_control_tile_label">Charging control</string>
     <string name="charge_control_tile_disabled">Disabled</string>
     <string name="charge_control_tile_subtitle">Stop at %1$d%%</string>
+    <string name="charge_control_tile_paused">Paused at %1$d%%</string>
 
     <!-- Thermal profile UI (from john) -->
     <string name="parts_apply_failed">Could not apply this setting. Please try again.</string>

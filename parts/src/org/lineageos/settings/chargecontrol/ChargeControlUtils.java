@@ -24,6 +24,7 @@ import android.content.SharedPreferences;
 import android.os.BatteryManager;
 import android.os.UserHandle;
 import android.service.quicksettings.TileService;
+import android.util.Log;
 
 import androidx.preference.PreferenceManager;
 
@@ -33,6 +34,8 @@ import org.lineageos.settings.utils.FileUtils;
  * Shared charging-limit logic used by the settings screen, the QS tile and the service.
  */
 public final class ChargeControlUtils {
+
+    private static final String TAG = "ChargeControlUtils";
 
     private static final int HYSTERESIS = 2;
 
@@ -49,9 +52,21 @@ public final class ChargeControlUtils {
         return FileUtils.isFileWritable(ChargeControlConstants.NODE_STOP_CHARGING);
     }
 
+    /**
+     * Whether the charging input is currently suspended by the kernel node.
+     */
+    public static boolean isSuspended() {
+        String value = FileUtils.readOneLine(ChargeControlConstants.NODE_STOP_CHARGING);
+        return value != null && "1".equals(value.trim());
+    }
+
     public static void startService(Context context) {
-        context.startServiceAsUser(
-                new Intent(context, ChargeControlService.class), UserHandle.CURRENT);
+        try {
+            context.startServiceAsUser(
+                    new Intent(context, ChargeControlService.class), UserHandle.CURRENT);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Cannot start charge control service", e);
+        }
 
         if (isSupported() && !isEnabled(context)) {
             // Make sure a suspend left over from a previous boot is released.
@@ -90,6 +105,9 @@ public final class ChargeControlUtils {
                 .apply();
 
         if (enabled) {
+            // Make sure the battery monitor is running even if the service was
+            // killed after an update or a force-stop.
+            startService(context);
             // The node was released while disabled, forget the cached value so it gets
             // written again below.
             sLastApplied = null;
