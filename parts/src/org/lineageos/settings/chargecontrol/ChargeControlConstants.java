@@ -24,6 +24,7 @@ public final class ChargeControlConstants {
 
     public static final String KEY_CHARGE_CONTROL = "charge_control";
     public static final String KEY_STOP_CHARGING = "stop_charging";
+    public static final String KEY_BYPASS_CHARGING = "bypass_charging";
 
     public static final String NODE_STOP_CHARGING =
             "/sys/class/power_supply/battery/input_suspend";
@@ -32,4 +33,11 @@ public final class ChargeControlConstants {
 
     // Keep in sync with app:min in res/xml/charge_control.xml
     public static final int MIN_STOP_CHARGING = 20;
+
+    // Bypass charging is refused below this level and released automatically when
+    // the battery drops under it while bypass is active.
+    public static final int MIN_BYPASS_LEVEL = 20;
+
+    // Battery temperature is reported in tenths of a degree Celsius.
+    public static final int MAX_BYPASS_TEMPERATURE = 450;
 }

@@ -28,10 +28,11 @@ import android.util.Log;
 
 import androidx.preference.PreferenceManager;
 
+import org.lineageos.settings.R;
 import org.lineageos.settings.utils.FileUtils;
 
 /**
- * Shared charging-limit logic used by the settings screen, the QS tile and the service.
+ * Shared charging-limit logic used by the settings screen, the QS tiles and the service.
  */
 public final class ChargeControlUtils {
 
@@ -95,6 +96,76 @@ public final class ChargeControlUtils {
                 .apply();
     }
 
+    public static boolean isBypassEnabled(Context context) {
+        return getPreferences(context)
+                .getBoolean(ChargeControlConstants.KEY_BYPASS_CHARGING, false);
+    }
+
+    /**
+     * Checks whether bypass charging can be turned on right now.
+     */
+    public static SafetyCheckResult checkBypassSafety(Context context) {
+        if (!isSupported()) {
+            return new SafetyCheckResult(false,
+                    context.getString(R.string.charge_bypass_unavailable));
+        }
+        if (!isEnabled(context)) {
+            return new SafetyCheckResult(false,
+                    context.getString(R.string.charge_bypass_requires_charge_control));
+        }
+
+        Intent batteryStatus = getBatteryStatus(context);
+        if (batteryStatus == null) {
+            return new SafetyCheckResult(false,
+                    context.getString(R.string.charge_bypass_unavailable));
+        }
+
+        if (batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) == 0) {
+            return new SafetyCheckResult(false,
+                    context.getString(R.string.charge_bypass_no_charger));
+        }
+
+        int temperature = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0);
+        if (temperature > 0 && temperature >= ChargeControlConstants.MAX_BYPASS_TEMPERATURE) {
+            return new SafetyCheckResult(false,
+                    context.getString(R.string.charge_bypass_temp_too_high,
+                            Math.round(temperature / 10.0f)));
+        }
+
+        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        if (level >= 0 && scale > 0) {
+            int percent = Math.round(level * 100f / scale);
+            if (percent < ChargeControlConstants.MIN_BYPASS_LEVEL) {
+                return new SafetyCheckResult(false,
+                        context.getString(R.string.charge_bypass_level_too_low, percent));
+            }
+        }
+
+        return new SafetyCheckResult(true, null);
+    }
+
+    /**
+     * Turns bypass charging on or off. Returns false when the node could not be
+     * updated.
+     */
+    public static boolean setBypassEnabled(Context context, boolean enabled) {
+        if (!isSupported() || (enabled && !isEnabled(context))) {
+            return false;
+        }
+
+        setBypassPreference(context, enabled);
+        // Forget the cached value so the state is written even if it did not change.
+        sLastApplied = null;
+        boolean ok = applyCurrentBatteryState(context);
+        if (!ok && enabled) {
+            setBypassPreference(context, false);
+        }
+
+        updateTiles(context);
+        return ok;
+    }
+
     public static void setEnabled(Context context, boolean enabled) {
         if (!isSupported()) {
             return;
@@ -102,6 +173,7 @@ public final class ChargeControlUtils {
 
         getPreferences(context).edit()
                 .putBoolean(ChargeControlConstants.KEY_CHARGE_CONTROL, enabled)
+                .putBoolean(ChargeControlConstants.KEY_BYPASS_CHARGING, false)
                 .apply();
 
         if (enabled) {
@@ -118,22 +190,24 @@ public final class ChargeControlUtils {
             writeNode(false);
         }
 
-        updateTile(context);
+        updateTiles(context);
     }
 
     public static boolean applyCurrentBatteryState(Context context) {
-        Intent batteryStatus = context.registerReceiver(
-                null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        Intent batteryStatus = getBatteryStatus(context);
         if (batteryStatus == null) {
             return false;
         }
 
         return applyBatteryState(context,
                 batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1),
-                batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1));
+                batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1),
+                batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0,
+                batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0));
     }
 
-    public static boolean applyBatteryState(Context context, int level, int scale) {
+    public static boolean applyBatteryState(Context context, int level, int scale,
+            boolean plugged, int temperature) {
         if (!isSupported()) {
             return false;
         }
@@ -148,15 +222,36 @@ public final class ChargeControlUtils {
             return false;
         }
 
+        int percent = Math.round(level * 100f / scale);
+
+        boolean bypass = prefs.getBoolean(ChargeControlConstants.KEY_BYPASS_CHARGING, false);
+        if (bypass && (percent < ChargeControlConstants.MIN_BYPASS_LEVEL
+                || (temperature > 0
+                        && temperature >= ChargeControlConstants.MAX_BYPASS_TEMPERATURE))) {
+            // Safety limits reached while bypassing: fall back to normal charging.
+            setBypassPreference(context, false);
+            bypass = false;
+            updateTiles(context);
+        }
+
         int stopLevel = clampStopLevel(prefs.getInt(
                 ChargeControlConstants.KEY_STOP_CHARGING,
                 ChargeControlConstants.DEFAULT_STOP_CHARGING));
-        int percent = Math.round(level * 100f / scale);
 
-        // Resume only below the configured level, otherwise the node would be toggled
-        // on every battery broadcast while sitting exactly at the threshold.
-        boolean suspend = percent >= stopLevel
-                || (Boolean.TRUE.equals(sLastApplied) && percent > stopLevel - HYSTERESIS);
+        boolean suspend;
+        if (bypass) {
+            // Bypass keeps the input suspended regardless of the battery level.
+            suspend = true;
+        } else if (!plugged) {
+            // Nothing to suspend while unplugged; release the node so a stale
+            // suspend does not survive the next connection.
+            suspend = false;
+        } else {
+            // Resume only below the configured level, otherwise the node would be toggled
+            // on every battery broadcast while sitting exactly at the threshold.
+            suspend = percent >= stopLevel
+                    || (Boolean.TRUE.equals(sLastApplied) && percent > stopLevel - HYSTERESIS);
+        }
 
         if (Boolean.valueOf(suspend).equals(sLastApplied)) {
             return true;
@@ -174,6 +269,21 @@ public final class ChargeControlUtils {
         }
     }
 
+    public static void updateTiles(Context context) {
+        updateTile(context);
+        BypassChargeTileService.requestUpdate(context);
+    }
+
+    private static void setBypassPreference(Context context, boolean enabled) {
+        getPreferences(context).edit()
+                .putBoolean(ChargeControlConstants.KEY_BYPASS_CHARGING, enabled)
+                .apply();
+    }
+
+    private static Intent getBatteryStatus(Context context) {
+        return context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    }
+
     private static boolean writeNode(boolean suspend) {
         boolean ok = FileUtils.writeLine(
                 ChargeControlConstants.NODE_STOP_CHARGING, suspend ? "1" : "0");
@@ -185,5 +295,23 @@ public final class ChargeControlUtils {
 
     private static SharedPreferences getPreferences(Context context) {
         return PreferenceManager.getDefaultSharedPreferences(context);
+    }
+
+    public static final class SafetyCheckResult {
+        private final boolean mSafe;
+        private final String mReason;
+
+        private SafetyCheckResult(boolean safe, String reason) {
+            mSafe = safe;
+            mReason = reason;
+        }
+
+        public boolean isSafe() {
+            return mSafe;
+        }
+
+        public String getReason() {
+            return mReason;
+        }
     }
 }
