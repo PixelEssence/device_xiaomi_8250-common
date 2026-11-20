@@ -25,7 +25,7 @@
         android:key="bypass_charging"
         android:title="@string/charge_bypass_title"
         android:summary="@string/charge_bypass_summary"
-        android:icon="@drawable/charger_24px"
+        android:icon="@drawable/ic_bypass_charging"
         android:defaultValue="false" />
 
     <com.android.settingslib.widget.FooterPreference
