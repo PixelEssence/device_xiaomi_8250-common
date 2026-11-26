@@ -53,7 +53,7 @@ public class HBMFragment extends SettingsBasePreferenceFragment
 
         mHBMModeSwitch = findPreference(KEY_HBM_SWITCH);
         if (mHBMModeSwitch != null) {
-            mHBMModeSwitch.setChecked(HbmUtils.isEnabled());
+            mHBMModeSwitch.setChecked(HbmUtils.isEnabled(context));
             mHBMModeSwitch.setOnPreferenceChangeListener(new HBMModeSwitch(context));
         }
 

@@ -51,7 +51,7 @@ public class HBMModeTileService extends TileService {
     @Override
     public void onStartListening() {
         super.onStartListening();
-        updateUI(HbmUtils.isEnabled());
+        updateUI(HbmUtils.isEnabled(this));
     }
 
     @Override
@@ -61,12 +61,12 @@ public class HBMModeTileService extends TileService {
             return;
         }
 
-        final boolean enabled = !HbmUtils.isEnabled();
+        final boolean enabled = !HbmUtils.isEnabled(this);
         if (HbmUtils.setEnabled(this, enabled)) {
             updateUI(enabled);
         } else {
             // Reflect the real node state if the write failed.
-            updateUI(HbmUtils.isEnabled());
+            updateUI(HbmUtils.isEnabled(this));
         }
     }
 }
