@@ -322,4 +322,10 @@
 
     <bool name="config_dozeDoubleTapSensorAvailable">true</bool>
 
+    <!-- AW8697 exposes gain control, so keyboard and ringtone vibration can be
+         configured independently from the general haptic intensity. -->
+    <bool name="config_keyboardVibrationSettingsSupported">true</bool>
+    <bool name="config_keyboardVibrationSettingsIntensitySupported">true</bool>
+    <bool name="config_ringtoneVibrationSettingsSupported">true</bool>
+
 </resources>
